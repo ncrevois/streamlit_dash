@@ -1,0 +1,8 @@
+
+
+[theme]
+primaryColor="#d7ffcd"            # Light green color for primary elements
+backgroundColor="#2C2C2C"           # Dark grey background color
+secondaryBackgroundColor="#373737"  # Slightly lighter grey for secondary backgrounds
+textColor="#E8E8E8"                 # Light grey color for text to ensure readability
+font="sans serif"
