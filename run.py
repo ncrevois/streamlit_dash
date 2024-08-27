@@ -30,7 +30,13 @@ if __name__ == "__main__":
         "run",
         streamlit_app_path,
         "--global.developmentMode=false",
+        "--theme.backgroundColor=#2C2C2C",
+        "--theme.primaryColor=#d7ffcd",
+        "--theme.secondaryBackgroundColor=#373737",
+        "--theme.textColor=#E8E8E8",
+        "--theme.font=\'sans serif\'"
     ]
+
     print("sys.argv:", sys.argv)
     
     sys.exit(stcli.main())

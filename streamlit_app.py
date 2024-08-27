@@ -5,31 +5,16 @@ from matching import *
 from plots import *
 import sys
 
-# Determine the base path
-if getattr(sys, 'frozen', False):
-    # we are running in a bundle
-    base_path = os.path.dirname(sys.executable)
-else:
-    # we are running in a normal Python environment
-    base_path = os.path.dirname(os.path.abspath(__file__))
-
-# Set the Streamlit configuration path
-config_path = os.path.join(base_path, '.streamlit')
-os.environ['STREAMLIT_CONFIG_DIR'] = config_path
-
-# # Set the page config
-# st.set_page_config(
-#     page_title="Matching Dashboard",
-#     page_icon=":bar_chart:",
-#     layout="wide",
-#     initial_sidebar_state="expanded"
-# )
-
+# Set the page config
+st.set_page_config(
+    page_title="Matching Dashboard",
+    page_icon=":bar_chart:",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Define the path to the logo
 logo_path = os.path.join(os.path.dirname(__file__), "assets", "Sopht_logo.png")
-#logo_path = "Sopht_logo.png"
-
 # Add your logo at the top
 st.image(logo_path, width=150) 
 

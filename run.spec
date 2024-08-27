@@ -5,13 +5,11 @@ from PyInstaller.utils.hooks import copy_metadata
 
 datas = [
 
-    ("/Users/nathaliecrevoisier/Documents/Sopht/Matching/MatchingDashboard/streamlit_dash/venv/lib/python3.12/site-packages/streamlit/runtime", "./streamlit/runtime"), 
-    ("/Users/nathaliecrevoisier/Documents/Sopht/Matching/MatchingDashboard/streamlit_dash/streamlit_app.py", "."),
-    ("/Users/nathaliecrevoisier/Documents/Sopht/Matching/MatchingDashboard/streamlit_dash/matching.py", "."), 
-    ("/Users/nathaliecrevoisier/Documents/Sopht/Matching/MatchingDashboard/streamlit_dash/plots.py", "."),
-    ("/Users/nathaliecrevoisier/Documents/Sopht/Matching/MatchingDashboard/streamlit_dash/Sopht_logo.png", "./assets"),
-    ("/Users/nathaliecrevoisier/Documents/Sopht/Matching/MatchingDashboard/streamlit_dash/.streamlit", "."),
-
+    ("./venv/lib/python3.12/site-packages/streamlit/runtime", "./streamlit/runtime"), 
+    ("./streamlit_app.py", "."),
+    ("./matching.py", "."), 
+    ("./plots.py", "."),
+    ("./assets/Sopht_logo.png", "./assets"),
     ]
 datas += collect_data_files("streamlit")
 datas += copy_metadata("streamlit")
@@ -25,7 +23,7 @@ a = Analysis(
     pathex=["."],
     binaries=[],
     datas=datas,
-    hiddenimports=['seaborn'],
+    hiddenimports=['seaborn', 'toml'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
