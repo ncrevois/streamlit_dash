@@ -133,7 +133,7 @@ def get_matchings(df, references_df):
         results.append([
             row['category'], row['manufacturer'], row['model'], 
             best_reference, float(max_score), matching_type, int(row['device_instances']), 
-            float(co2_final), set(row['clients'].strip('{}').split(','))
+            float(co2_final), row['clients']
         ])
         i+=1 
         

@@ -13,6 +13,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Initialize session state variables
+if 'client_assets' not in st.session_state:
+    st.session_state.client_assets = pd.DataFrame()
+if 'references_df' not in st.session_state:
+    st.session_state.references_df = pd.DataFrame()
+if 'results_df' not in st.session_state:
+    st.session_state.results_df = pd.DataFrame()
+if 'results_df_all' not in st.session_state:
+    st.session_state.results_df_all = pd.DataFrame()
+if 'update_triggered' not in st.session_state:
+    st.session_state.update_triggered = False
+
 # Define the path to the logo
 logo_path = os.path.join(os.path.dirname(__file__), "assets", "Sopht_logo.png")
 # Add your logo at the top
@@ -92,12 +104,76 @@ if reference_file is not None and client_assets_file is not None:
     if run_button:
         # Define the dataframes
         st.session_state.client_assets = pd.read_csv(client_assets_file).fillna("NULL")
+        st.session_state.client_assets_grouped = client_assets_grouped = st.session_state.client_assets.groupby(['manufacturer', 'model', 'category']).agg({
+            'device_instances': 'sum',
+            'client': lambda x: ', '.join(x.unique())
+        }).reset_index().rename(columns={'client': 'clients'})
         st.session_state.references_df = pd.read_csv(reference_file)
 
         with st.spinner('Computing the metrics... This will take a few minutes... Come back a bit later...'):
-            st.session_state.results_df = get_matchings(st.session_state.client_assets, st.session_state.references_df).sort_values(by="device_instances", ascending=False, ignore_index=True)
+            st.session_state.results_df_all = get_matchings(st.session_state.client_assets_grouped, st.session_state.references_df).sort_values(by="device_instances", ascending=False, ignore_index=True)
 
-    if 'results_df' in st.session_state:
+    if 'results_df_all' in st.session_state:
+
+        client_options = ['All clients'] + st.session_state.client_assets['client'].unique().tolist()
+
+        selected_client = st.selectbox('Select a client:', client_options) 
+
+        # Filter the results_df if a specific client is selected
+        if selected_client != 'All clients':
+            st.session_state.results_df = st.session_state.results_df_all[
+                st.session_state.results_df_all['clients'].str.contains(selected_client)
+            ]
+
+            # Replace device_instances with original values from df if a specific client is selected
+            original_df_filtered = st.session_state.client_assets[
+                st.session_state.client_assets['client'] == selected_client
+            ]
+
+            # Rename 'model' to 'inventory_model' in original_df_filtered
+            original_df_filtered = original_df_filtered.rename(columns={'model': 'inventory_model'})
+
+            # Join the original device_instances to the filtered results
+            st.session_state.results_df = st.session_state.results_df.merge(
+                original_df_filtered[['manufacturer', 'inventory_model', 'category', 'device_instances']],
+                on=['manufacturer', 'inventory_model', 'category'],
+                suffixes=('', '_original')
+            )
+
+
+            # Replace the summed device_instances with the original device_instances
+            st.session_state.results_df['device_instances'] = st.session_state.results_df['device_instances_original']
+            st.session_state.results_df.drop(columns=['device_instances_original'], inplace=True)
+            st.session_state.results_df['clients'] = selected_client
+
+        else: 
+            st.session_state.results_df = st.session_state.results_df_all 
+
+
+        # Data editor
+        st.markdown("<hr>", unsafe_allow_html=True)  # Horizontal line
+        st.markdown(f"<h3 style='color: #d7ffcd;'>Reference Table</h3>", unsafe_allow_html=True)
+        st.data_editor(
+            st.session_state.references_df,
+            num_rows="dynamic",
+            key="references_editor"
+        )
+
+        # Rerun button
+        st.session_state.update_triggered = False
+        if st.button("Rerun"):
+            with st.spinner('Updating results...'):
+                update_results()
+
+        # Check if update was triggered and show a success message
+        if st.session_state.get('update_triggered', False):
+            st.success("Results updated successfully!")
+            st.session_state.update_triggered = False
+
+        st.markdown("---")  # Horizontal separator
+
+        st.write("**Note:** Updates to the reference table will be reflected in the metrics and unmatched devices displayed above.")
+
         # Layout of the clients' devices dataset with multiple filters
         st.markdown(f"<h3 style='color: #d7ffcd;'>All Clients' Devices</h3>", unsafe_allow_html=True)
         filt1, filt2, filt3 = st.columns(3)
@@ -140,7 +216,9 @@ if reference_file is not None and client_assets_file is not None:
 
         if clients_input:
             filter_clients = [client.strip().lower() for client in clients_input.split(',')]
-            filtered_df = filtered_df[filtered_df['clients'].apply(lambda x: any(client in [cl.lower() for cl in x] for client in filter_clients))]
+            filtered_df = filtered_df[filtered_df['clients'].apply(
+                lambda x: any(client in [cl.strip().lower() for cl in x.split(',')] for client in filter_clients)
+            )]
 
         selected_filters = []
         if m0_checked:
@@ -183,30 +261,5 @@ if reference_file is not None and client_assets_file is not None:
         st.image(buf1, use_column_width=True)
         st.image(buf2, use_column_width=True)
         st.image(buf3, use_column_width=True)
-
-        # Data editor
-        st.markdown("<hr>", unsafe_allow_html=True)  # Horizontal line
-        st.markdown(f"<h3 style='color: #d7ffcd;'>Update Reference Table</h3>", unsafe_allow_html=True)
-        st.data_editor(
-            st.session_state.references_df,
-            num_rows="dynamic",
-            key="references_editor"
-        )
-
-        # Rerun button
-        st.session_state.update_triggered = False
-        if st.button("Rerun"):
-            with st.spinner('Updating results...'):
-                update_results()
-                st.rerun()
-
-        # Check if update was triggered and show a success message
-        if st.session_state.get('update_triggered', False):
-            st.success("Results updated successfully!")
-            st.session_state.update_triggered = False
-
-        st.markdown("---")  # Horizontal separator
-
-        st.write("**Note:** Updates to the reference table will be reflected in the metrics and unmatched devices displayed above.")
 
         print("successful run!")
