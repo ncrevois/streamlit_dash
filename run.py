@@ -1,4 +1,4 @@
-import streamlit
+
 import streamlit.web.cli as stcli
 import os
 import sys

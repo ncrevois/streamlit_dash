@@ -33,25 +33,20 @@ st.image(logo_path, width=150)
 ## DEFINE FUNCTIONS
 # Function to recompute metrics given new values in the reference tables were added
 def update_results():
-    updated_dict = st.session_state.references_editor
 
     added_rows = st.session_state.references_editor.get('added_rows', [])
-    print("added_rows", added_rows)
     # Find new rows in references_df
     new_ref_rows = pd.DataFrame(added_rows, columns=st.session_state.references_df.columns)
 
     if not new_ref_rows.empty:
         # Get unmatched devices
         unmatched_devices = st.session_state.results_df[st.session_state.results_df.matching_type != "M0"]
-        print("unmatched_devices", len(unmatched_devices))
 
-        filtered_client_assets = st.session_state.client_assets[st.session_state.client_assets['model'].isin(unmatched_devices['inventory_model'])]
+        filtered_client_assets = st.session_state.client_assets_grouped[st.session_state.client_assets_grouped['model'].isin(unmatched_devices['inventory_model'])]
 
         # Perform matching only on new rows and unmatched devices
         new_matches = get_matchings(filtered_client_assets, new_ref_rows)
         new_matches = new_matches[new_matches.matching_type == "M0"]
-
-        print("new_matches", new_matches)
 
         # Update table results_df with new matched rows
         for _, row in new_matches.iterrows():
@@ -81,98 +76,8 @@ def update_results():
 def lower_case(word):
     return(word.lower())
 
-# Add a title and description
-st.markdown(f"<h1 style='color: #d7ffcd;'>Matching Dashboard</h1>", unsafe_allow_html=True)
-st.markdown("""
-This dashboard provides insights into the CO2 emissions associated with various devices. 
-You can view unmatched devices, check metrics, and update reference tables.
-""")
-
-# Upload data
-uploader1, uploader2 = st.columns(2)
-with uploader1:
-    client_assets_file = st.file_uploader("Upload a clients' assets file.")
-
-with uploader2:
-    reference_file = st.file_uploader("Upload a reference file.")
-
-if reference_file is not None and client_assets_file is not None:
-
-    # Add a "Run" button
-    run_button = st.button("Run")
-
-    if run_button:
-        # Define the dataframes
-        st.session_state.client_assets = pd.read_csv(client_assets_file).fillna("NULL")
-        st.session_state.client_assets_grouped = client_assets_grouped = st.session_state.client_assets.groupby(['manufacturer', 'model', 'category']).agg({
-            'device_instances': 'sum',
-            'client': lambda x: ', '.join(x.unique())
-        }).reset_index().rename(columns={'client': 'clients'})
-        st.session_state.references_df = pd.read_csv(reference_file)
-
-        with st.spinner('Computing the metrics... This will take a few minutes... Come back a bit later...'):
-            st.session_state.results_df_all = get_matchings(st.session_state.client_assets_grouped, st.session_state.references_df).sort_values(by="device_instances", ascending=False, ignore_index=True)
-
-    if 'results_df_all' in st.session_state:
-
-        client_options = ['All clients'] + st.session_state.client_assets['client'].unique().tolist()
-
-        selected_client = st.selectbox('Select a client:', client_options) 
-
-        # Filter the results_df if a specific client is selected
-        if selected_client != 'All clients':
-            st.session_state.results_df = st.session_state.results_df_all[
-                st.session_state.results_df_all['clients'].str.contains(selected_client)
-            ]
-
-            # Replace device_instances with original values from df if a specific client is selected
-            original_df_filtered = st.session_state.client_assets[
-                st.session_state.client_assets['client'] == selected_client
-            ]
-
-            # Rename 'model' to 'inventory_model' in original_df_filtered
-            original_df_filtered = original_df_filtered.rename(columns={'model': 'inventory_model'})
-
-            # Join the original device_instances to the filtered results
-            st.session_state.results_df = st.session_state.results_df.merge(
-                original_df_filtered[['manufacturer', 'inventory_model', 'category', 'device_instances']],
-                on=['manufacturer', 'inventory_model', 'category'],
-                suffixes=('', '_original')
-            )
-
-
-            # Replace the summed device_instances with the original device_instances
-            st.session_state.results_df['device_instances'] = st.session_state.results_df['device_instances_original']
-            st.session_state.results_df.drop(columns=['device_instances_original'], inplace=True)
-            st.session_state.results_df['clients'] = selected_client
-
-        else: 
-            st.session_state.results_df = st.session_state.results_df_all 
-
-
-        # Data editor
-        st.markdown("<hr>", unsafe_allow_html=True)  # Horizontal line
-        st.markdown(f"<h3 style='color: #d7ffcd;'>Reference Table</h3>", unsafe_allow_html=True)
-        st.data_editor(
-            st.session_state.references_df,
-            num_rows="dynamic",
-            key="references_editor"
-        )
-
-        # Rerun button
-        st.session_state.update_triggered = False
-        if st.button("Rerun"):
-            with st.spinner('Updating results...'):
-                update_results()
-
-        # Check if update was triggered and show a success message
-        if st.session_state.get('update_triggered', False):
-            st.success("Results updated successfully!")
-            st.session_state.update_triggered = False
-
-        st.markdown("---")  # Horizontal separator
-
-        st.write("**Note:** Updates to the reference table will be reflected in the metrics and unmatched devices displayed above.")
+@st.fragment
+def show_data(): 
 
         # Layout of the clients' devices dataset with multiple filters
         st.markdown(f"<h3 style='color: #d7ffcd;'>All Clients' Devices</h3>", unsafe_allow_html=True)
@@ -247,6 +152,7 @@ if reference_file is not None and client_assets_file is not None:
         with devices_shown2:
             st.markdown(f"*{percentage_shown:.2f}% of total devices*")
 
+        filtered_df.drop(columns=['score'], inplace=True) # drop the score column 
         # Display filtered dataframe
         st.dataframe(filtered_df.sort_values(by="device_instances", ascending=False, ignore_index=True))
 
@@ -263,3 +169,98 @@ if reference_file is not None and client_assets_file is not None:
         st.image(buf3, use_column_width=True)
 
         print("successful run!")
+
+
+
+# Add a title and description
+st.markdown(f"<h1 style='color: #d7ffcd;'>Matching Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("""
+This dashboard provides insights into the CO2 emissions associated with various devices. 
+You can view unmatched devices, check metrics, and update reference tables.
+""")
+
+# Upload data
+uploader1, uploader2 = st.columns(2)
+with uploader1:
+    client_assets_file = st.file_uploader("Upload a clients' assets file.")
+
+with uploader2:
+    reference_file = st.file_uploader("Upload a reference file.")
+
+
+if reference_file is not None and client_assets_file is not None:
+    # Add a "Run" button
+    run_button = st.button("Run")
+
+    if run_button:
+        # Define the dataframes
+        st.session_state.client_assets = pd.read_csv(client_assets_file).fillna("NULL")
+        st.session_state.client_assets_grouped = client_assets_grouped = st.session_state.client_assets.groupby(['manufacturer', 'model', 'category']).agg({
+            'device_instances': 'sum',
+            'client': lambda x: ', '.join(x.unique())
+        }).reset_index().rename(columns={'client': 'clients'})
+        st.session_state.references_df = pd.read_csv(reference_file)
+
+        with st.spinner('Computing the metrics... This will take a few minutes... Come back a bit later...'):
+            st.session_state.results_df_all = get_matchings(st.session_state.client_assets_grouped, st.session_state.references_df).sort_values(by="device_instances", ascending=False, ignore_index=True)
+
+    if 'results_df_all' in st.session_state:
+
+        client_options = ['All clients'] + st.session_state.client_assets['client'].unique().tolist()
+
+        selected_client = st.selectbox('Select a client:', client_options) 
+
+        # Filter the results_df if a specific client is selected
+        if selected_client != 'All clients':
+            st.session_state.results_df = st.session_state.results_df_all[
+                st.session_state.results_df_all['clients'].str.contains(selected_client)
+            ]
+
+            # Replace device_instances with original values from df if a specific client is selected
+            original_df_filtered = st.session_state.client_assets[
+                st.session_state.client_assets['client'] == selected_client
+            ]
+
+            # Rename 'model' to 'inventory_model' in original_df_filtered
+            original_df_filtered = original_df_filtered.rename(columns={'model': 'inventory_model'})
+
+            # Join the original device_instances to the filtered results
+            st.session_state.results_df = st.session_state.results_df.merge(
+                original_df_filtered[['manufacturer', 'inventory_model', 'category', 'device_instances']],
+                on=['manufacturer', 'inventory_model', 'category'],
+                suffixes=('', '_original')
+            )
+
+
+            # Replace the summed device_instances with the original device_instances
+            st.session_state.results_df['device_instances'] = st.session_state.results_df['device_instances_original']
+            st.session_state.results_df.drop(columns=['device_instances_original'], inplace=True)
+            st.session_state.results_df['clients'] = selected_client
+
+        else: 
+            st.session_state.results_df = st.session_state.results_df_all 
+
+
+        # Data editor
+        st.markdown("<hr>", unsafe_allow_html=True)  # Horizontal line
+        st.markdown(f"<h3 style='color: #d7ffcd;'>Reference Table</h3>", unsafe_allow_html=True)
+        st.data_editor(
+            st.session_state.references_df,
+            num_rows="dynamic",
+            key="references_editor"
+        )
+
+        # Rerun button
+        st.session_state.update_triggered = False
+        if st.button("Rerun"):
+            with st.spinner('Updating results...'):
+                update_results()
+
+        # Check if update was triggered and show a success message
+        if st.session_state.get('update_triggered', False):
+            st.success("Results updated successfully!")
+            st.session_state.update_triggered = False
+
+        st.markdown("---")  # Horizontal separator
+
+        show_data()
