@@ -204,7 +204,7 @@ if reference_file is not None and client_assets_file is not None:
         with st.spinner('Computing the metrics... This will take a few minutes... Come back a bit later...'):
             st.session_state.results_df_all = get_matchings(st.session_state.client_assets_grouped, st.session_state.references_df).sort_values(by="device_instances", ascending=False, ignore_index=True)
 
-    if 'results_df_all' in st.session_state:
+    if not st.session_state["results_df_all"].empty:
 
         client_options = ['All clients'] + st.session_state.client_assets['client'].unique().tolist()
 
